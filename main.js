@@ -10,7 +10,7 @@ const connect = (connection) => {
     init();
 }
 
-const init = async() => {
+const init = async () => {
     const userChoice = await promptResponse();
 
     const functionPicked = await switchChoices(userChoice.choices);
@@ -20,17 +20,17 @@ const init = async() => {
     init();
 };
 
-const promptResponse = ()=>{
+const promptResponse = () => {
     return inquirer.prompt([{
-        name:"choices",
-        type:"list",
-        choices:["Department", "Roles", "Employees", "Quit"],
+        name: "choices",
+        type: "list",
+        choices: ["Department", "Roles", "Employees", "Quit"],
     }])
 };
 
 const switchChoices = async (choices) => {
     let answer;
-    switch(choices) {
+    switch (choices) {
         case "Department":
             answer = await departmentQuestions();
             break;
@@ -79,7 +79,7 @@ const employeeQuestions = () => {
 };
 
 const getQueryType = async (choice) => {
-    switch(choice) {
+    switch (choice) {
         case "View Departments":
             await getAllDepartments();
             break;
@@ -156,42 +156,42 @@ const addDepartment = async () => {
 const addRole = async () => {
     const depts = [];
     const departmentList = await getAllDepartments();
-     for (const dept of departmentList) {
-         depts.push(`${dept.id} ${dept.name}`)
-     }
+    for (const dept of departmentList) {
+        depts.push(`${dept.id} ${dept.name}`)
+    }
 
-     const answer = await inquirer.prompt([
-         {
-             name: "department",
-             type: "rawlist",
-             message: "Select department",
-             choices: depts
-         },
-         {
-             name: "role",
-             message: "Enter name of role"
-         },
-         {
-             name: "salary",
-             type: "number",
-             message: "Enter salary or leave blank"
-         }
-     ]);
+    const answer = await inquirer.prompt([
+        {
+            name: "department",
+            type: "rawlist",
+            message: "Select department",
+            choices: depts
+        },
+        {
+            name: "role",
+            message: "Enter name of role"
+        },
+        {
+            name: "salary",
+            type: "number",
+            message: "Enter salary or leave blank"
+        }
+    ]);
 
-     return new Promise((resolve, reject) => {
-         const query = `
+    return new Promise((resolve, reject) => {
+        const query = `
          INSERT INTO role (title, salary, department_id)
          VALUES (?, ?, ?);
          `;
 
-         connectionA.query(query, [answer.role, answer.salary ? answer.salary : null, parseInt(answer.department.split(" ")[0])], (err, res) => {
-             if (err) reject(err);
-             else {
-                 console.log(`Succesfully Added ${answer.role} to department ${answer.department.split(" ")[1]}`)
-                 resolve(res);
-             }
-         });
-     });
+        connectionA.query(query, [answer.role, answer.salary ? answer.salary : null, parseInt(answer.department.split(" ")[0])], (err, res) => {
+            if (err) reject(err);
+            else {
+                console.log(`Succesfully Added ${answer.role} to department ${answer.department.split(" ")[1]}`)
+                resolve(res);
+            }
+        });
+    });
 };
 
 const getAllRoles = () => {
@@ -283,7 +283,55 @@ const addEmployee = async () => {
             choices: roleList
         }
     ]);
-}
+
+    const managerChoice = await inquirer.prompt([
+        {
+            name: "manager",
+            type: "list",
+            message: "Do they have a manager?",
+            choices: ["Yes", "No"]
+        }
+    ]);
+
+    const managerList = [];
+    let selectedManager;
+    if (managerChoice.manager === "Yes") {
+        const managers = await getManagers(deptChoice.department);
+        if (managers.length > 0) {
+            for (const manager of managers) {
+                managerList.push(`${manager.id} ${manager.employee}`);
+            }
+
+            selectedManager = await inquirer.prompt([
+                {
+                    name: "manager",
+                    type: "list",
+                    choices: managerList
+                }
+            ]);
+        }
+    }
+
+    return new Promise((resolve, reject) => {
+        const query = `
+        INSERT INTO employee (first_name, last_name, role_id, manager_id)
+        VALUES (?, ?, ?, ?);
+        `;
+
+        let manager = null;
+        if (selectedManager) {
+            manager = parseInt(selectedManager.manager.split(" ")[0])
+        };
+
+        connectionA.query(query, [employeeName.firstName, employeeName.lastName, parseInt(roleChoice.role.split(" ")[0]), manager], (err, res) => {
+            if (err) reject(err);
+            else {
+                console.log(`Added employee`);
+                resolve(res);
+            }
+        });
+    });
+};
 
 // function to help us get roles by selected department
 const getRoleByDept = (dept) => {
@@ -296,6 +344,26 @@ const getRoleByDept = (dept) => {
         `;
 
         connectionA.query(query, dept.split(" ")[1], (err, res) => {
+            if (err) reject(err);
+            else resolve(res);
+        });
+    });
+};
+
+// Get managers for selected department
+getManagers = (department) => {
+    return new Promise((resolve, reject) => {
+        const query = `
+        SELECT employee.id,
+        CONCAT(employee.first_name, " ", employee.last_name) employee
+        FROM employee
+        INNER JOIN role
+        ON employee.role_id = role.id AND role.title = "Manager"
+        INNER JOIN departments ON role.department_id = departments.id
+        AND departments.name = ?;
+        `;
+
+        connectionA.query(query, department.split(" ")[1], (err, res) => {
             if (err) reject(err);
             else resolve(res);
         });
