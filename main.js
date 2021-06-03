@@ -1,5 +1,7 @@
 const inquirer = require('inquirer');
 const { async } = require('rxjs');
+const { resolve } = require('path');
+const { promises } = require('fs');
 
 let connectionA;
 
@@ -89,6 +91,15 @@ const getQueryType = async (choice) => {
             break;
         case "Add Role":
             await addRole();
+            break;
+        case "View all Employees":
+            await getAllEmployees();
+            break;
+        case "Add Employee":
+            await addEmployee();
+            break;
+        case "Update Employee":
+            await updateEmployee();
             break;
         default:
             init();
@@ -199,6 +210,94 @@ const getAllRoles = () => {
                 console.table(res);
                 resolve(res);
             }
+        });
+    });
+};
+
+const getAllEmployees = () => {
+    return new Promise((resolve, reject) => {
+        const query = `
+        SELECT emp.id,
+        CONCAT(emp.first_name, " ", emp.last_name) Employee_name,
+        role.title,
+        role.salary,
+        departments.name AS Department,
+        CONCAT(manager.first_name, " ", manager.last_name) Manager_name
+        FROM employee emp
+        INNER JOIN role ON emp.role_id = role.id
+        INNER JOIN departments ON role.department_id = departments.id
+        LEFT JOIN employee manager ON manager.id = emp.manager_id;
+        `;
+
+        connectionA.query(query, (err, res) => {
+            if (err) reject(err);
+            else {
+                console.log("Employee List:\n");
+                console.table(res);
+                resolve(res);
+            }
+        });
+    });
+};
+
+const addEmployee = async () => {
+    const deptList = [];
+    const roleList = [];
+
+    // Get all dept choices
+    const departments = await getAllDepartments();
+    for (const dept of departments) {
+        deptList.push(`${dept.id} ${dept.name}`);
+    }
+
+    const employeeName = await inquirer.prompt([
+        {
+            name: "firstName",
+            message: "Employee first name"
+        },
+        {
+            name: "lastName",
+            message: "Employee last name"
+        }
+    ]);
+
+    const deptChoice = await inquirer.prompt([
+        {
+            name: "department",
+            type: "list",
+            message: "Select department employee will belong to",
+            choices: deptList
+        }
+    ]);
+
+    const deptRoles = await getRoleByDept(deptChoice.department);
+    for (const role of deptRoles) {
+        roleList.push(`${role.id} ${role.title}`);
+    }
+
+    const roleChoice = await inquirer.prompt([
+        {
+            name: "role",
+            type: "list",
+            message: "Select role",
+            choices: roleList
+        }
+    ]);
+}
+
+// function to help us get roles by selected department
+const getRoleByDept = (dept) => {
+    return new Promise((resolve, reject) => {
+        const query = `
+        SELECT role.id, role.title, role.salary
+        FROM role
+        LEFT JOIN departments ON role.department_id = departments.id
+        WHERE departments.name = ?;
+        `;
+
+        connectionA.query(query, dept.split(" ")[1], (err, res) => {
+            if (err) reject(err);
+            else resolve(res);
         });
     });
 };
