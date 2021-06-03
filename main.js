@@ -13,7 +13,10 @@ const init = async() => {
 
     const functionPicked = await switchChoices(userChoice.choices);
 
-}
+    const query = await getQueryType(functionPicked.choices);
+
+    init();
+};
 
 const promptResponse = ()=>{
     return inquirer.prompt([{
@@ -72,5 +75,13 @@ const employeeQuestions = () => {
         }
     ])
 };
+
+const getQueryType = async () => {
+    console.log("leaf me alone")
+}
+
+const quitApp = () => {
+    process.exit();
+}
 
 module.exports = connect;
