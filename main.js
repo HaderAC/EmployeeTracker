@@ -84,6 +84,12 @@ const getQueryType = async (choice) => {
         case "Add Department":
             await addDepartment();
             break;
+        case "View Roles":
+            await getAllRoles();
+            break;
+        case "Add Role":
+            await addRole();
+            break;
         default:
             init();
             break;
@@ -134,6 +140,67 @@ const addDepartment = async () => {
             }
         });
     });
-}
+};
+
+const addRole = async () => {
+    const depts = [];
+    const departmentList = await getAllDepartments();
+     for (const dept of departmentList) {
+         depts.push(`${dept.id} ${dept.name}`)
+     }
+
+     const answer = await inquirer.prompt([
+         {
+             name: "department",
+             type: "rawlist",
+             message: "Select department",
+             choices: depts
+         },
+         {
+             name: "role",
+             message: "Enter name of role"
+         },
+         {
+             name: "salary",
+             type: "number",
+             message: "Enter salary or leave blank"
+         }
+     ]);
+
+     return new Promise((resolve, reject) => {
+         const query = `
+         INSERT INTO role (title, salary, department_id)
+         VALUES (?, ?, ?);
+         `;
+
+         connectionA.query(query, [answer.role, answer.salary ? answer.salary : null, parseInt(answer.department.split(" ")[0])], (err, res) => {
+             if (err) reject(err);
+             else {
+                 console.log(`Succesfully Added ${answer.role} to department ${answer.department.split(" ")[1]}`)
+                 resolve(res);
+             }
+         });
+     });
+};
+
+const getAllRoles = () => {
+    return new Promise((resolve, reject) => {
+        const query = `
+        SELECT role.id, role.title, role.salary, departments.name AS Department
+        FROM role
+        LEFT JOIN departments
+        ON role.department_id = departments.id;
+        `;
+
+        connectionA.query(query, (err, res) => {
+            if (err) reject(err);
+            else {
+                console.log("Roles:\n");
+                console.table(res);
+                resolve(res);
+            }
+        });
+    });
+};
 
 module.exports = connect;
