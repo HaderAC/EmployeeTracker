@@ -370,4 +370,62 @@ getManagers = (department) => {
     });
 };
 
+// Update Employee
+const updateEmployee = async () => {
+    const deptList = [];
+    const roleList = [];
+
+    const employeeID = await inquirer.prompt([
+        {
+            name: "employeeID",
+            message: "Enter employee ID to update",
+            type: "number"
+        }
+    ]);
+
+    const departments = await getAllDepartments();
+    for (const dept of departments) {
+        deptList.push(`${dept.id} ${dept.name}`);
+    }
+
+    const deptChoice = await inquirer.prompt([
+        {
+            name: "dept",
+            type: "list",
+            message: "Which department will they work in?",
+            choices: deptList
+        }
+    ]);
+
+    const deptRoles = await getRoleByDept(deptChoice.dept);
+    for (const role of deptRoles) {
+        roleList.push(`${role.id} ${role.title}`);
+    }
+
+    const roleChoice = await inquirer.prompt([
+        {
+            name: "role",
+            type: "list",
+            message: "Select role",
+            choices: roleList
+        }
+    ]);
+
+    return new Promise((resolve, reject) => {
+        const query = `
+        UPDATE employee SET
+        role_id = ?
+        WHERE id = ?;
+        `;
+
+        connectionA.query(query, [parseInt(roleChoice.role.split(" ")[0]), parseInt(employeeID.employeeID)], (err, res) => {
+            if (err) reject(err);
+            else {
+                console.log("You have successfully updated\n");
+                resolve(res);
+            }
+        });
+    });
+}
+
 module.exports = connect;
